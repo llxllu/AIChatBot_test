@@ -25,7 +25,7 @@ def request_model(messages):
         print("Response Content:", response.content)
 
 
-def main():
+def chat():
     while True:
         messages = [create_message("system", "请使用中文进行所有对话。")]
         while True:
@@ -37,6 +37,3 @@ def main():
             response_data = request_model(messages)
             print("Assistant: ", response_data["message"]["content"])
             messages.append(create_message("assistant", response_data["message"]["content"]))
-
-
-main()

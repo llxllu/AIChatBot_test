@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            const socket = io();
+            const messages = [];
+            let assistantMessage = "";
+            let isAssistant = false;
+
+            function appendMessage(role, message, newMessage=false) {
+                if (newMessage) {
+                    const messageElement = $('<div>').addClass('message').addClass(role).text(message);
+                    $('#chat-box').append(messageElement);
+                } else {
+                    $('#chat-box').children('.message.' + role).last().text(message);
+                }
+                $('#chat-box').scrollTop($('#chat-box')[0].scrollHeight);
+            }
+
+            $('#send-button').click(function() {
+                const userMessage = $('#input-box').val();
+                if (userMessage.trim() !== '') {
+                    socket.emit('send_message', { message: userMessage, messages: messages });
+                    $('#input-box').val('');
+                }
+            });
+
+            socket.on('receive_message', function(data) {
+                if (data.role === 'user') {
+                    appendMessage(data.role, data.content, true);
+                    isAssistant = true;
+                } else {
+                    assistantMessage = data.content;
+                    if (isAssistant) {
+                        appendMessage(data.role, assistantMessage, true);
+                        isAssistant = false;
+                    } else {
+                        appendMessage(data.role, assistantMessage);
+                    }
+                }
+                if (data.role === 'assistant') {
+                    messages.push({ role: 'assistant', content: data.content });
+                }
+            });
+
+            $('#input-box').keypress(function(e) {
+                if (e.which === 13) {
+                    $('#send-button').click();
+                }
+            });
+        });
+    </script>
+</head>
+<body>
+    <div class="chat-container">
+        <div id="chat-box" class="chat-box"></div>
+        <input id="input-box" type="text" placeholder="Type a message...">
+        <button id="send-button">Send</button>
+    </div>
+</body>
+</html>
