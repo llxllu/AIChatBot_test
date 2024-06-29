@@ -17,12 +17,13 @@
 
             function appendMessage(role, message, newMessage=false) {
                 const avatarUrl = role === 'user' ? '/static/user.png' : '/static/assistant.png';
+                const formattedMessage = formatMessage(message);
                 if (newMessage) {
                     const messageElement = $(`
                         <div class="message-container ${role}-container">
                             <img src="${avatarUrl}" class="avatar">
                             <div class="message ${role}">
-                                ${message}
+                                ${formattedMessage}
                                 ${role === 'assistant' ? '<img src="/static/speaker.png" class="speaker-icon" onclick="playVoice(this)">' : ''}
                             </div>
                         </div>
@@ -30,11 +31,21 @@
                     $('#chat-box').append(messageElement);
                 } else {
                     $('#chat-box').children('.message-container').last().find('.message').html(`
-                        ${message}
+                        ${formattedMessage}
                         ${role === 'assistant' ? '<img src="/static/speaker.png" class="speaker-icon" onclick="playVoice(this)">' : ''}
                     `);
                 }
                 $('#chat-box').scrollTop($('#chat-box')[0].scrollHeight);
+            }
+
+            function formatMessage(message) {
+                const formatted = message
+                    .replace(/\n/g, '<br>')
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // Bold
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')  // Italic
+                    .replace(/```(.*?)```/gs, '<pre><code>$1</code></pre>')  // Code block
+                    .replace(/`(.*?)`/g, '<code>$1</code>');  // Inline code
+                return `<p>${formatted}</p>`;
             }
 
             $('#send-button').click(function() {
@@ -77,7 +88,7 @@
                     $(element).attr('src', '/static/speaker.png'); // 切换回扬声器图标
                 } else {
                     $.post('/text2voice', { text: message }, function(response) {
-                        audio = new Audio(response.audio_url); // 假设服务器返回音频文件的URL
+                        audio = new Audio(response.audio_url);
                         audio.play();
                         $(element).attr('src', '/static/speaker-off.png'); // 切换为播放图标
                         audio.onended = function() {

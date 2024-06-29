@@ -6,6 +6,28 @@ def create_message(role, content):
     return {"role": role, "content": content}
 
 
+def stream_model(messages):
+    url = "http://localhost:11434/api/chat"
+    payload = {
+        "model": "llama3:8b",
+        "messages": messages,
+        "stream": True  # 启用流式响应
+    }
+    headers = {
+        "Content-Type": "application/json"
+    }
+
+    with requests.post(url, headers=headers, data=json.dumps(payload), stream=True) as response:
+        if response.status_code == 200:
+            for line in response.iter_lines():
+                if line:
+                    yield json.loads(line.decode('utf-8'))['message']['content']
+        else:
+            print("Failed to get response: ", response.status_code)
+            print("Response Content:", response.content)
+            yield "Error: Failed to get response from model"
+
+
 def request_model(messages):
     url = "http://localhost:11434/api/chat"
     payload = {
