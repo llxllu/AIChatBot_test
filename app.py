@@ -5,6 +5,7 @@ import json
 import os
 from tools.text2voice import text2voice
 from tools.clearCache import clear_folder
+from tools.voice2text import voice2text
 from models import Llama
 import uuid
 
@@ -26,6 +27,15 @@ def text_to_voice_route():
     audio_filename = f"static/cache/{uuid.uuid4()}.mp3"
     text2voice(text, audio_filename)
     return jsonify(audio_url=f'/{audio_filename}')
+
+
+@app.route('/voice2text', methods=['POST'])
+def voice_to_text_route():
+    try:
+        text = voice2text()
+        return jsonify(text=text)
+    except Exception as e:
+        return jsonify(error=str(e)), 500
 
 
 @socketio.on('send_message')

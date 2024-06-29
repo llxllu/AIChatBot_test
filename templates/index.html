@@ -13,7 +13,7 @@
             const messages = [];
             let assistantMessage = "";
             let isAssistant = false;
-            let audio = null; // 用于保存当前播放的音频
+            let audio = null;
 
             function appendMessage(role, message, newMessage=false) {
                 const avatarUrl = role === 'user' ? '/static/user.png' : '/static/assistant.png';
@@ -51,9 +51,19 @@
             $('#send-button').click(function() {
                 const userMessage = $('#input-box').val();
                 if (userMessage.trim() !== '') {
-                    socket.emit('send_message', { message: userMessage, messages: messages });
+                    socket.emit('send_message', { message: userMessage, messages: messages, model: $('#model-select').val() });
                     $('#input-box').val('');
                 }
+            });
+
+            $('#voice-button').click(function() {
+                $.post('/voice2text', function(response) {
+                    if (response.text) {
+                        $('#input-box').val(response.text);
+                    } else {
+                        alert(response.error);
+                    }
+                });
             });
 
             socket.on('receive_message', function(data) {
@@ -85,15 +95,15 @@
                 if (audio) {
                     audio.pause();
                     audio = null;
-                    $(element).attr('src', '/static/speaker.png'); // 切换回扬声器图标
+                    $(element).attr('src', '/static/speaker.png');
                 } else {
                     $.post('/text2voice', { text: message }, function(response) {
                         audio = new Audio(response.audio_url);
                         audio.play();
-                        $(element).attr('src', '/static/speaker-off.png'); // 切换为播放图标
+                        $(element).attr('src', '/static/speaker-off.png');
                         audio.onended = function() {
                             audio = null;
-                            $(element).attr('src', '/static/speaker.png'); // 恢复扬声器图标
+                            $(element).attr('src', '/static/speaker.png');
                         }
                     });
                 }
@@ -103,10 +113,17 @@
 </head>
 <body>
     <div class="chat-container">
+        <div class="header">
+            <select id="model-select">
+                <option value="Llama3">Llama3</option>
+                <option value="Llava">Llava</option>
+            </select>
+        </div>
         <div id="chat-box" class="chat-box"></div>
         <div class="input-container">
             <input id="input-box" type="text" placeholder="Type a message...">
             <button id="send-button">Send</button>
+            <button id="voice-button">Voice Input</button>
         </div>
     </div>
 </body>

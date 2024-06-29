@@ -1,17 +1,25 @@
 import requests
 import json
+import base64
 
 
-def create_message(role, content):
-    return {"role": role, "content": content}
+def image_to_base64(image_path):
+    with open(image_path, "rb") as image_file:
+        encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+    return encoded_string
+
+
+def create_message(role, content, image=None):
+    return {"role": role, "content": content, "image": image}
 
 
 def stream_model(messages):
     url = "http://localhost:11434/api/chat"
     payload = {
-        "model": "llama3:8b",
+        "model": "llava:latest",
         "messages": messages,
-        "stream": True  # 启用流式响应
+        "stream": True,  # 启用流式响应
+        "images": messages[-1].get("image", None)
     }
     headers = {
         "Content-Type": "application/json"
@@ -31,9 +39,10 @@ def stream_model(messages):
 def request_model(messages):
     url = "http://localhost:11434/api/chat"
     payload = {
-        "model": "llama3:8b",
+        "model": "llava:latest",
         "messages": messages,
-        "stream": False
+        "stream": False,
+        "images": messages[-1].get("image", None)
     }
     headers = {
         "Content-Type": "application/json"
@@ -52,10 +61,15 @@ def chat_with_Llama():
         messages = [create_message("system", "请使用中文进行所有对话。")]
         while True:
             user_input = input("You: ")
+            image_input = input("Image: ")
             if user_input == "exit":
                 print("Goodbye!")
                 break
-            messages.append(create_message("user", user_input))
+            messages.append(
+                create_message("user", user_input, image=None if image_input == "" else image_to_base64(image_input)))
             response_data = request_model(messages)
             print("Assistant: ", response_data["message"]["content"])
             messages.append(create_message("assistant", response_data["message"]["content"]))
+
+
+chat_with_Llama()
