@@ -21,8 +21,13 @@
 3. 运行聊天机器人
 
    ```cmd
-   python main.py
+   python chat.py
    ```
 
-    
+4. 工具包
+
+   ```cmd
+   text2voice # 文本转语音
+   voice2text # 语音转文本
+   ```
 
