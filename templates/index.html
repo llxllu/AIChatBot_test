@@ -13,13 +13,26 @@
             const messages = [];
             let assistantMessage = "";
             let isAssistant = false;
+            let audio = null; // 用于保存当前播放的音频
 
             function appendMessage(role, message, newMessage=false) {
+                const avatarUrl = role === 'user' ? '/static/user.png' : '/static/assistant.png';
                 if (newMessage) {
-                    const messageElement = $('<div>').addClass('message').addClass(role).text(message);
+                    const messageElement = $(`
+                        <div class="message-container ${role}-container">
+                            <img src="${avatarUrl}" class="avatar">
+                            <div class="message ${role}">
+                                ${message}
+                                ${role === 'assistant' ? '<img src="/static/speaker.png" class="speaker-icon" onclick="playVoice(this)">' : ''}
+                            </div>
+                        </div>
+                    `);
                     $('#chat-box').append(messageElement);
                 } else {
-                    $('#chat-box').children('.message.' + role).last().text(message);
+                    $('#chat-box').children('.message-container').last().find('.message').html(`
+                        ${message}
+                        ${role === 'assistant' ? '<img src="/static/speaker.png" class="speaker-icon" onclick="playVoice(this)">' : ''}
+                    `);
                 }
                 $('#chat-box').scrollTop($('#chat-box')[0].scrollHeight);
             }
@@ -55,14 +68,35 @@
                     $('#send-button').click();
                 }
             });
+
+            window.playVoice = function(element) {
+                const message = $(element).closest('.message').text();
+                if (audio) {
+                    audio.pause();
+                    audio = null;
+                    $(element).attr('src', '/static/speaker.png'); // 切换回扬声器图标
+                } else {
+                    $.post('/text2voice', { text: message }, function(response) {
+                        audio = new Audio(response.audio_url); // 假设服务器返回音频文件的URL
+                        audio.play();
+                        $(element).attr('src', '/static/speaker-off.png'); // 切换为播放图标
+                        audio.onended = function() {
+                            audio = null;
+                            $(element).attr('src', '/static/speaker.png'); // 恢复扬声器图标
+                        }
+                    });
+                }
+            }
         });
     </script>
 </head>
 <body>
     <div class="chat-container">
         <div id="chat-box" class="chat-box"></div>
-        <input id="input-box" type="text" placeholder="Type a message...">
-        <button id="send-button">Send</button>
+        <div class="input-container">
+            <input id="input-box" type="text" placeholder="Type a message...">
+            <button id="send-button">Send</button>
+        </div>
     </div>
 </body>
 </html>
