@@ -61,6 +61,7 @@ def handle_send_message(data):
 def handle_send_image(data):
     messages = data['messages']
     image_base64 = data['image']
+    user_message = data['message']  # 获取用户消息
     model = data.get('model', 'Llava')  # 获取前端传来的模型名称，默认为Llava
 
     if not messages:
@@ -70,6 +71,10 @@ def handle_send_image(data):
     image_path = f"static/cache/{uuid.uuid4()}.png"
     with open(image_path, "wb") as image_file:
         image_file.write(image_content)
+
+    if user_message:
+        messages.append(Llava.create_message("user", user_message))
+        emit('receive_message', {'role': 'user', 'content': user_message, 'isImage': False})
 
     messages.append(Llava.create_message("user", "用中文描述图片中的内容", image=[image_base64]))
     emit('receive_message', {'role': 'user', 'content': image_base64, 'isImage': True})
@@ -83,6 +88,7 @@ def handle_send_image(data):
         for word in Llama.stream_model(messages):  # 使用Llama模块
             assistant_message += word
             emit('receive_message', {'role': 'assistant', 'content': assistant_message, 'isImage': False}, broadcast=True)
+
 
 if __name__ == '__main__':
     socketio.run(app, debug=True)
