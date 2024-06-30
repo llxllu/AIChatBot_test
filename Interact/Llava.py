@@ -56,7 +56,7 @@ def request_model(messages):
         print("Response Content:", response.content)
 
 
-def chat_with_Llama():
+def chat_with_Llava():
     while True:
         messages = [create_message("system", "请使用中文进行所有对话。")]
         while True:
@@ -72,5 +72,3 @@ def chat_with_Llama():
             print(messages)
             messages.append(create_message("assistant", response_data["message"]["content"]))
 
-
-chat_with_Llama()

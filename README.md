@@ -18,7 +18,11 @@
    ollama pull llama3:8b
    ```
 
-3. 运行聊天机器人
+3. 部署开源大模型 **Llava**(用于图像处理)，参数7b，模型大小 4G，命令行输入：
+
+   ```cmd
+   ollama pull llava:latest
+   ```
 
 
 4. 工具包
