@@ -6,7 +6,7 @@ import os
 from tools.text2voice import text2voice
 from tools.clearCache import clear_folder
 from tools.voice2text import voice2text
-from models import Llama
+from Interact import Llama
 import uuid
 
 clear_folder()
