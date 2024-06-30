@@ -6,11 +6,13 @@ import base64
 def image_to_base64(image_path):
     with open(image_path, "rb") as image_file:
         encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
-    return encoded_string
+    return [encoded_string]
 
 
 def create_message(role, content, image=None):
-    return {"role": role, "content": content, "image": image}
+    if image is None:
+        return {"role": role, "content": content}
+    return {"role": role, "content": content, "images": image}
 
 
 def stream_model(messages):
@@ -18,8 +20,7 @@ def stream_model(messages):
     payload = {
         "model": "llava:latest",
         "messages": messages,
-        "stream": True,  # 启用流式响应
-        "images": messages[-1].get("image", None)
+        "stream": True,
     }
     headers = {
         "Content-Type": "application/json"
@@ -42,7 +43,6 @@ def request_model(messages):
         "model": "llava:latest",
         "messages": messages,
         "stream": False,
-        "images": messages[-1].get("image", None)
     }
     headers = {
         "Content-Type": "application/json"
@@ -69,6 +69,7 @@ def chat_with_Llama():
                 create_message("user", user_input, image=None if image_input == "" else image_to_base64(image_input)))
             response_data = request_model(messages)
             print("Assistant: ", response_data["message"]["content"])
+            print(messages)
             messages.append(create_message("assistant", response_data["message"]["content"]))
 
 

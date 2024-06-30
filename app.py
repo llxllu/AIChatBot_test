@@ -44,7 +44,7 @@ def handle_send_message(data):
     user_message = data['message']
 
     if not messages:
-        messages.append(Llama.create_message("system", "请使用中文进行所有对话。"))
+        messages.append(Llama.create_message("system", "你现在扮演一个智能语音机器人，并且只能用中文交流。"))
 
     messages.append(Llama.create_message("user", user_message))
     emit('receive_message', {'role': 'user', 'content': user_message})
