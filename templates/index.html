@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        .message img {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+    <script>
+        $(document).ready(function () {
+            const socket = io();
+            const messages = [];
+            let assistantMessage = "";
+            let isAssistant = false;
+            let audio = null;
+
+            function appendMessage(role, message, isImage = false, newMessage = false) {
+                const avatarUrl = role === 'user' ? '/static/user.png' : '/static/assistant.png';
+                let formattedMessage = formatMessage(message);
+                if (isImage) {
+                    formattedMessage = `<img src="data:image/png;base64,${message}" alt="Image">`;
+                }
+                if (newMessage) {
+                    const messageElement = $(`
+                        <div class="message-container ${role}-container">
+                            <img src="${avatarUrl}" class="avatar">
+                            <div class="message ${role}">
+                                ${formattedMessage}
+                                ${role === 'assistant' ? '<img src="/static/speaker.png" class="speaker-icon" onclick="playVoice(this)">' : ''}
+                            </div>
+                        </div>
+                    `);
+                    $('#chat-box').append(messageElement);
+                } else {
+                    $('#chat-box').children('.message-container').last().find('.message').html(`
+                        ${formattedMessage}
+                        ${role === 'assistant' ? '<img src="/static/speaker.png" class="speaker-icon" onclick="playVoice(this)">' : ''}
+                    `);
+                }
+                $('#chat-box').scrollTop($('#chat-box')[0].scrollHeight);
+            }
+
+            function formatMessage(message) {
+                const formatted = message
+                    .replace(/\n/g, '<br>')
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // Bold
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')  // Italic
+                    .replace(/```(.*?)```/gs, '<pre><code>$1</code></pre>')  // Code block
+                    .replace(/`(.*?)`/g, '<code>$1</code>');  // Inline code
+                return `<p>${formatted}</p>`;
+            }
+
+            function resizeImage(file, callback) {
+                const maxWidth = $('#chat-box').width() * (2 / 3);
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    const img = new Image();
+                    img.onload = function () {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        if (img.width > maxWidth) {
+                            const scale = maxWidth / img.width;
+                            canvas.width = maxWidth;
+                            canvas.height = img.height * scale;
+                        } else {
+                            canvas.width = img.width;
+                            canvas.height = img.height;
+                        }
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        callback(canvas.toDataURL('image/png').split(',')[1]);
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+
+            $('#send-icon').click(function () {
+                const userMessage = $('#input-box').val();
+                const imageInput = $('#image-input')[0].files[0];
+                const model = $('#model-select').val();
+
+                if (userMessage.trim() === '' && !imageInput) {
+                    return;
+                }
+
+                if (imageInput) {
+                    resizeImage(imageInput, function (base64Image) {
+                        socket.emit('send_image', {
+                            image: base64Image,
+                            message: userMessage,
+                            messages: messages,
+                            model: model
+                        });
+                        $('#image-input').val('');
+                        $('#file-icon img').attr('src', 'static/import.png');  // Reset file icon after sending
+                    });
+                } else {
+                    socket.emit('send_message', {message: userMessage, messages: messages, model: model});
+                }
+
+                $('#input-box').val('');
+            });
+
+
+            $('#voice-icon').click(function () {
+                $.post('/voice2text', function (response) {
+                    if (response.text) {
+                        $('#input-box').val(response.text);
+                    } else {
+                        alert(response.error);
+                    }
+                });
+            });
+
+            $('#file-icon').click(function () {
+                $('#image-input').click();
+            });
+
+            $('#image-input').change(function () {
+                const file = this.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        $('#file-icon img').attr('src', e.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            socket.on('receive_message', function (data) {
+                if (data.role === 'user') {
+                    appendMessage(data.role, data.content, data.isImage, true);
+                    isAssistant = true;
+                } else {
+                    assistantMessage = data.content;
+                    if (isAssistant) {
+                        appendMessage(data.role, assistantMessage, data.isImage, true);
+                        isAssistant = false;
+                    } else {
+                        appendMessage(data.role, assistantMessage, data.isImage);
+                    }
+                }
+                if (data.role === 'assistant') {
+                    messages.push({role: 'assistant', content: data.content});
+                }
+            });
+
+            $('#input-box').keypress(function (e) {
+                if (e.which === 13) {
+                    $('#send-icon').click();
+                }
+            });
+
+            window.playVoice = function (element) {
+                const message = $(element).closest('.message').text();
+                if (audio) {
+                    audio.pause();
+                    audio = null;
+                    $(element).attr('src', '/static/speaker.png');
+                } else {
+                    $.post('/text2voice', {text: message}, function (response) {
+                        audio = new Audio(response.audio_url);
+                        audio.play();
+                        $(element).attr('src', '/static/speaker-off.png');
+                        audio.onended = function () {
+                            audio = null;
+                            $(element).attr('src', '/static/speaker.png');
+                        }
+                    });
+                }
+            }
+        });
+    </script>
+</head>
+<body>
+<div class="chat-container">
+    <div class="header">
+        <select id="model-select">
+            <option value="Llama">Llama</option>
+            <option value="Llava">Llava</option>
+        </select>
+    </div>
+    <div id="chat-box" class="chat-box"></div>
+    <div class="input-container">
+        <input id="input-box" type="text" placeholder="请输入文本">
+        <input id="image-input" type="file" accept="image/*" style="display: none;">
+        <button class="icon-button" id="send-icon">
+            <img src="static/send.png" alt="发送消息">
+        </button>
+        <button class="icon-button" id="voice-icon">
+            <img src="static/voice.png" alt="语音输入">
+        </button>
+        <button class="icon-button" id="file-icon">
+            <img src="static/import.png" alt="发送图片">
+        </button>
+    </div>
+</div>
+</body>
+</html>
